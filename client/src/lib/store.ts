@@ -71,14 +71,18 @@ export const useStore = create<AppState>()(
       unlockUnit: (unitId) => set((state) => ({
         progress: {
           ...state.progress,
-          unlockedUnits: [...new Set([...state.progress.unlockedUnits, unitId])]
+          unlockedUnits: state.progress.unlockedUnits.includes(unitId) 
+            ? state.progress.unlockedUnits 
+            : [...state.progress.unlockedUnits, unitId]
         }
       })),
 
       completeUnit: (unitId) => set((state) => ({
         progress: {
           ...state.progress,
-          completedUnits: [...new Set([...state.progress.completedUnits, unitId])]
+          completedUnits: state.progress.completedUnits.includes(unitId)
+            ? state.progress.completedUnits
+            : [...state.progress.completedUnits, unitId]
         }
       })),
 
