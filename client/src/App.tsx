@@ -7,6 +7,7 @@ import UnitPage from "@/pages/UnitPage";
 import ReviewPage from "@/pages/ReviewPage";
 import ProfilePage from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
+import TrackPage from "@/pages/TrackPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -14,6 +15,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/unit/:id" component={UnitPage} />
+      <Route path="/track" component={TrackPage} />
       <Route path="/review" component={ReviewPage} />
       <Route path="/profile" component={ProfilePage} />
       <Route path="/settings" component={SettingsPage} />

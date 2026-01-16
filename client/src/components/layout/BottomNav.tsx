@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { BookOpen, Layers, Zap, User } from "lucide-react";
+import { BookOpen, Layers, Zap, User, Calendar } from "lucide-react";
 import { clsx } from "clsx";
 
 export function BottomNav() {
@@ -7,6 +7,7 @@ export function BottomNav() {
 
   const navItems = [
     { icon: BookOpen, label: "Learn", path: "/" },
+    { icon: Calendar, label: "Track", path: "/track" },
     { icon: Layers, label: "Review", path: "/review" },
     { icon: User, label: "Profile", path: "/profile" },
   ];

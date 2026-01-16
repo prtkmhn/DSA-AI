@@ -21,16 +21,29 @@ export interface AISettings {
   enableFallback: boolean;
 }
 
+export interface TrackedProblem {
+  id: string;
+  topic: string;
+  status: 'generating' | 'needs_fix' | 'verified';
+  createdAt: number;
+  unitId?: string; // Links to the generated Unit ID
+}
+
 interface AppState {
   progress: UserProgress;
   flashcardData: Record<string, FlashcardState>;
   aiSettings: AISettings;
+  trackedProblems: TrackedProblem[];
   
   // Actions
   completeUnit: (unitId: string) => void;
   updateFlashcard: (cardId: string, quality: number) => void;
   unlockUnit: (unitId: string) => void;
   updateAISettings: (settings: Partial<AISettings>) => void;
+  
+  // Problem Creator Actions
+  addTrackedProblem: (topic: string) => void;
+  updateProblemStatus: (id: string, status: TrackedProblem['status'], unitId?: string) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -48,6 +61,7 @@ export const useStore = create<AppState>()(
         primaryProvider: 'gemini',
         enableFallback: true,
       },
+      trackedProblems: [],
 
       unlockUnit: (unitId) => set((state) => ({
         progress: {
@@ -94,6 +108,24 @@ export const useStore = create<AppState>()(
 
       updateAISettings: (settings) => set((state) => ({
         aiSettings: { ...state.aiSettings, ...settings }
+      })),
+
+      addTrackedProblem: (topic) => set((state) => ({
+        trackedProblems: [
+          {
+            id: crypto.randomUUID(),
+            topic,
+            status: 'generating',
+            createdAt: Date.now()
+          },
+          ...state.trackedProblems
+        ]
+      })),
+
+      updateProblemStatus: (id, status, unitId) => set((state) => ({
+        trackedProblems: state.trackedProblems.map(p => 
+          p.id === id ? { ...p, status, unitId: unitId || p.unitId } : p
+        )
       })),
     }),
     {
