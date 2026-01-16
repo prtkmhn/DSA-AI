@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { Unit } from './types';
+import { UNITS as DEFAULT_UNITS } from './data';
 
 interface UserProgress {
   completedUnits: string[];
@@ -26,7 +28,7 @@ export interface TrackedProblem {
   topic: string;
   status: 'generating' | 'needs_fix' | 'verified';
   createdAt: number;
-  unitId?: string; // Links to the generated Unit ID
+  unitId?: string;
 }
 
 interface AppState {
@@ -34,24 +36,26 @@ interface AppState {
   flashcardData: Record<string, FlashcardState>;
   aiSettings: AISettings;
   trackedProblems: TrackedProblem[];
+  units: Unit[];
   
   // Actions
   completeUnit: (unitId: string) => void;
   updateFlashcard: (cardId: string, quality: number) => void;
   unlockUnit: (unitId: string) => void;
   updateAISettings: (settings: Partial<AISettings>) => void;
+  addUnit: (unit: Unit) => void;
   
   // Problem Creator Actions
-  addTrackedProblem: (topic: string) => void;
+  addTrackedProblem: (topic: string) => string;
   updateProblemStatus: (id: string, status: TrackedProblem['status'], unitId?: string) => void;
 }
 
 export const useStore = create<AppState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       progress: {
         completedUnits: [],
-        unlockedUnits: ['two-sum'], // Start with first unit
+        unlockedUnits: ['two-sum'],
         parsonsProgress: {},
       },
       flashcardData: {},
@@ -62,6 +66,7 @@ export const useStore = create<AppState>()(
         enableFallback: true,
       },
       trackedProblems: [],
+      units: DEFAULT_UNITS,
 
       unlockUnit: (unitId) => set((state) => ({
         progress: {
@@ -78,7 +83,6 @@ export const useStore = create<AppState>()(
       })),
 
       updateFlashcard: (cardId, quality) => set((state) => {
-        // SM-2 Algorithm simplified
         const current = state.flashcardData[cardId] || { nextReview: 0, interval: 0, repetition: 0, efactor: 2.5 };
         
         let { interval, repetition, efactor } = current;
@@ -110,17 +114,25 @@ export const useStore = create<AppState>()(
         aiSettings: { ...state.aiSettings, ...settings }
       })),
 
-      addTrackedProblem: (topic) => set((state) => ({
-        trackedProblems: [
-          {
-            id: crypto.randomUUID(),
-            topic,
-            status: 'generating',
-            createdAt: Date.now()
-          },
-          ...state.trackedProblems
-        ]
+      addUnit: (unit) => set((state) => ({
+        units: [...state.units, unit]
       })),
+
+      addTrackedProblem: (topic) => {
+        const id = crypto.randomUUID();
+        set((state) => ({
+          trackedProblems: [
+            {
+              id,
+              topic,
+              status: 'generating',
+              createdAt: Date.now()
+            },
+            ...state.trackedProblems
+          ]
+        }));
+        return id;
+      },
 
       updateProblemStatus: (id, status, unitId) => set((state) => ({
         trackedProblems: state.trackedProblems.map(p => 

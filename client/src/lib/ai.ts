@@ -9,56 +9,74 @@ export interface AIResponse {
 
 async function callGemini(apiKey: string, prompt: string): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey);
-  // User requested "gemini-3-flash-preview", but let's fallback to 2.0 flash if 3 fails or use standard names.
-  // NOTE: "gemini-3-flash-preview" is likely not a public valid model name yet.
-  // I will use "gemini-1.5-flash" as it is the most stable current version to avoid 404s.
-  // However, I will check if I can use the user's string if they really insist, but for now let's fix the 404.
-  // The log said 404 for "gemini-1.5-flash" which is weird, maybe region locked?
-  // Let's try "gemini-pro" or "gemini-1.5-pro" as alternative?
-  // Actually, let's use the user's requested model if they provided one, but "gemini-3-flash-preview" sounds like a future model.
-  // I'll stick to a safe default "gemini-1.5-flash" but handle errors better.
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const modelsToTry = ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-pro"];
   
-  try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-  } catch (e: any) {
-    // If 404, might be model name issue.
-    if (e.message?.includes('404') || e.status === 404) {
-      throw new Error(`Gemini Model 404: The model is not available or API key has no access.`);
+  let lastError: Error | null = null;
+  
+  for (const modelName of modelsToTry) {
+    try {
+      console.log(`[AI] Trying Gemini model: ${modelName}`);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      console.log(`[AI] Success with ${modelName}`);
+      return response.text();
+    } catch (e: unknown) {
+      const error = e as Error & { status?: number };
+      console.warn(`[AI] Model ${modelName} failed:`, error.message);
+      lastError = error;
+      if (error.message?.includes('401') || error.status === 401) {
+        throw new Error('Invalid API key');
+      }
     }
-    throw e;
   }
+  
+  throw lastError || new Error('All Gemini models failed');
 }
 
 async function callGroq(apiKey: string, prompt: string): Promise<string> {
-  // User requested "openai/gpt-oss-120b".
-  // Groq usually hosts llama3, mixtral, etc. "openai/gpt-oss-120b" seems like a specific model alias the user wants.
-  // I will use "llama3-8b-8192" as a safe default if that fails, but let's try to honor the request or use a known Groq model.
-  // Known Groq models: llama3-8b-8192, llama3-70b-8192, mixtral-8x7b-32768.
-  // I will use "llama3-70b-8192" as a strong fallback.
+  const modelsToTry = ["llama-3.3-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768"];
   
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      messages: [{ role: "user", content: prompt }],
-      model: "llama3-70b-8192", 
-      temperature: 0.7
-    })
-  });
+  let lastError: Error | null = null;
 
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(`Groq API Error: ${response.status} ${errData.error?.message || response.statusText}`);
+  for (const modelName of modelsToTry) {
+    try {
+      console.log(`[AI] Trying Groq model: ${modelName}`);
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: prompt }],
+          model: modelName, 
+          temperature: 0.7,
+          max_tokens: 4096
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData.error?.message || response.statusText;
+        if (response.status === 401) {
+          throw new Error('Invalid API key');
+        }
+        throw new Error(`${response.status}: ${errMsg}`);
+      }
+
+      const data = await response.json();
+      console.log(`[AI] Success with ${modelName}`);
+      return data.choices[0]?.message?.content || "";
+    } catch (e: unknown) {
+      const error = e as Error;
+      console.warn(`[AI] Model ${modelName} failed:`, error.message);
+      lastError = error;
+      if (error.message?.includes('Invalid API key')) throw error;
+    }
   }
 
-  const data = await response.json();
-  return data.choices[0]?.message?.content || "";
+  throw lastError || new Error('All Groq models failed');
 }
 
 export async function generateAIContent(prompt: string): Promise<AIResponse> {
@@ -66,48 +84,39 @@ export async function generateAIContent(prompt: string): Promise<AIResponse> {
   const { geminiKey, groqKey, primaryProvider, enableFallback } = aiSettings;
 
   const tryGemini = async (): Promise<AIResponse> => {
-    if (!geminiKey) throw new Error("Gemini API key not found");
-    try {
-      const text = await callGemini(geminiKey, prompt);
-      return { text, provider: 'gemini' };
-    } catch (e: any) {
-      console.error("Gemini Error:", e);
-      throw e;
-    }
+    if (!geminiKey) throw new Error("Gemini API key not configured");
+    const text = await callGemini(geminiKey, prompt);
+    return { text, provider: 'gemini' };
   };
 
   const tryGroq = async (): Promise<AIResponse> => {
-    if (!groqKey) throw new Error("Groq API key not found");
-    try {
-      const text = await callGroq(groqKey, prompt);
-      return { text, provider: 'groq' };
-    } catch (e: any) {
-      console.error("Groq Error:", e);
-      throw e;
-    }
+    if (!groqKey) throw new Error("Groq API key not configured");
+    const text = await callGroq(groqKey, prompt);
+    return { text, provider: 'groq' };
   };
 
-  // Execution Logic
   try {
     if (primaryProvider === 'gemini') {
       return await tryGemini();
     } else {
       return await tryGroq();
     }
-  } catch (primaryError: any) {
+  } catch (primaryError: unknown) {
+    const pErr = primaryError as Error;
     if (enableFallback) {
-      console.warn("Primary provider failed, attempting fallback...", primaryError.message);
+      console.warn("[AI] Primary failed, trying fallback...", pErr.message);
       try {
         if (primaryProvider === 'gemini') {
           return await tryGroq();
         } else {
           return await tryGemini();
         }
-      } catch (fallbackError: any) {
+      } catch (fallbackError: unknown) {
+        const fErr = fallbackError as Error;
         return { 
           text: "", 
           provider: primaryProvider, 
-          error: `All providers failed. Primary: ${primaryError.message}. Fallback: ${fallbackError.message}` 
+          error: `All providers failed.\nPrimary (${primaryProvider}): ${pErr.message}\nFallback: ${fErr.message}` 
         };
       }
     }
@@ -115,7 +124,7 @@ export async function generateAIContent(prompt: string): Promise<AIResponse> {
     return { 
       text: "", 
       provider: primaryProvider, 
-      error: `Primary provider failed: ${primaryError.message}` 
+      error: pErr.message 
     };
   }
 }
