@@ -5,11 +5,11 @@
 
 export const AI_CONFIG = {
   // Fast model for tool selection and grounded lookups.
-  geminiModels: ["gemini-2.5-flash"],
+  geminiModels: ["gemini-3-flash"],
   groqModels: ["llama-3.3-70b-versatile"],
 
   // Capable model for content generation.
-  chatbotModel: "gemini-2.5-pro",
+  chatbotModel: "gemini-3-pro",
 
   // Image generation (Gemini 3 Pro Image / Nano Banana Pro)
   imageModel: "gemini-3-pro-image-preview",
