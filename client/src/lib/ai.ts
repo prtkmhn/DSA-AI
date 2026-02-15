@@ -36,6 +36,10 @@ function toFriendlyErrorMessage(message: string): string {
     return "Selected Gemini model is not supported for this API/key. The app will try fallback models automatically.";
   }
 
+  if (normalized.includes("google_search_retrieval not supported")) {
+    return "Grounded search mode is not supported by this model/API version. Retrying without grounding.";
+  }
+
   return message;
 }
 
@@ -95,17 +99,36 @@ async function callGemini(apiKey: string, prompt: string, options?: GenerateOpti
       console.log(`[AI] Trying Gemini model: ${modelName}${options?.useGrounding ? ' (with grounding)' : ''}`);
 
       // Build model config — optionally enable Google Search grounding
-      const modelConfig: { model: string; tools?: Array<{ googleSearchRetrieval: Record<string, never> }> } = {
-        model: modelName,
+      const runGenerate = async (useGrounding: boolean) => {
+        const modelConfig: any = { model: modelName };
+        if (useGrounding) {
+          // For v1beta, use googleSearch tool.
+          modelConfig.tools = [{ googleSearch: {} }];
+        }
+        const model = genAI.getGenerativeModel(modelConfig);
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text();
       };
-      if (options?.useGrounding) {
-        modelConfig.tools = [{ googleSearchRetrieval: {} }];
-      }
 
-      const model = genAI.getGenerativeModel(modelConfig);
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      let text = "";
+      try {
+        text = await runGenerate(Boolean(options?.useGrounding));
+      } catch (groundingError: unknown) {
+        const gErr = groundingError as Error;
+        const lower = gErr.message.toLowerCase();
+        const groundingUnsupported =
+          lower.includes("google_search_retrieval not supported") ||
+          lower.includes("google_search tool not supported") ||
+          lower.includes("please use google_search tool instead");
+
+        if (options?.useGrounding && groundingUnsupported) {
+          console.warn(`[AI] Grounding unsupported for ${modelName}, retrying without grounding`);
+          text = await runGenerate(false);
+        } else {
+          throw groundingError;
+        }
+      }
 
       logAPICall({
         timestamp: new Date().toISOString(),
@@ -279,3 +302,4 @@ export async function generateAIContent(prompt: string, options?: GenerateOption
     };
   }
 }
+

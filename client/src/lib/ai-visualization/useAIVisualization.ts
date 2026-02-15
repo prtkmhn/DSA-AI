@@ -323,29 +323,43 @@ async function callGeminiAPI(params: GeminiAPIParams): Promise<GeminiAPIResult> 
   console.log(`[AI] Calling model: ${params.model}`);
 
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const { DynamicRetrievalMode } = await import('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(params.apiKey);
   const model = genAI.getGenerativeModel({ model: params.model });
 
   try {
-    const result = await model.generateContent({
+    const payload: any = {
       contents: [
         { role: 'user', parts: [{ text: params.systemPrompt }] },
         { role: 'model', parts: [{ text: 'Understood. I will follow these instructions.' }] },
         { role: 'user', parts: [{ text: params.userPrompt }] }
       ],
-      tools: params.enableGrounding ? [{
-        googleSearchRetrieval: {
-          dynamicRetrievalConfig: {
-            mode: DynamicRetrievalMode.MODE_DYNAMIC
-          }
-        }
-      }] : undefined,
       generationConfig: {
         temperature: params.temperature,
         maxOutputTokens: params.maxTokens
       }
-    });
+    };
+
+    if (params.enableGrounding) {
+      payload.tools = [{ googleSearch: {} }];
+    }
+
+    let result;
+    try {
+      result = await model.generateContent(payload);
+    } catch (error) {
+      const msg = (error as Error).message.toLowerCase();
+      const groundingUnsupported =
+        msg.includes('google_search_retrieval not supported') ||
+        msg.includes('google_search tool not supported') ||
+        msg.includes('please use google_search tool instead');
+
+      if (params.enableGrounding && groundingUnsupported) {
+        delete payload.tools;
+        result = await model.generateContent(payload);
+      } else {
+        throw error;
+      }
+    }
 
     const text = result.response.text();
     const groundingMetadata = result.response.candidates?.[0]?.groundingMetadata;
