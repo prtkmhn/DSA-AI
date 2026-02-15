@@ -1,0 +1,17 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+.vercel
+archive
+Plan
+_archived
+dsa-visualizer
+faded-parsons-static
+mcp-visualizer
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+nul

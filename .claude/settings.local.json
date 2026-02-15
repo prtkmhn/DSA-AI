@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sc query:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run db:push:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd /c \"taskkill /PID 33388 /F\")",
+      "Bash(powershell -Command \"Stop-Process -Id 33388 -Force\")",
+      "Bash(dir /s /b \"D:\\\\Coding\\\\DSA AI\\\\DSA-AI\\\\faded-parsons-static\")",
+      "Bash(npm run build:*)",
+      "Bash(xargs:*)",
+      "Bash(npm run check:*)",
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(dir /s \"D:\\\\Coding\\\\DSA AI\\\\DSA-AI\\\\Kimi_Agent_Algorithm Visualizer MCP Integration\")",
+      "Bash(tree:*)",
+      "Bash(npx tsc --noEmit)",
+      "WebSearch",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite build)",
+      "mcp__ide__getDiagnostics",
+      "Bash(xxd:*)"
+    ]
+  }
+}

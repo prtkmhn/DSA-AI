@@ -1,0 +1,55 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "prismjs/themes/prism-tomorrow.css";
+
+@theme inline {
+  --color-brand-primary: hsl(152 76% 45%); /* Duolingo-ish Green */
+  --color-brand-primary-dark: hsl(152 76% 38%);
+  --color-brand-secondary: hsl(258 60% 60%); /* Soft Purple */
+  --color-brand-background: hsl(0 0% 98%);
+  --color-brand-card: hsl(0 0% 100%);
+  --color-brand-text: hsl(210 20% 25%);
+  --color-brand-text-light: hsl(210 15% 55%);
+  --color-success: hsl(145 63% 42%);
+  --color-error: hsl(0 84% 60%);
+  --color-warning: hsl(40 90% 60%);
+  
+  --font-sans: "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+}
+
+@layer base {
+  body {
+    @apply bg-brand-background text-brand-text font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer utilities {
+  .card-shadow {
+    box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.05);
+  }
+  
+  .btn-press {
+    @apply active:translate-y-[2px] active:shadow-none transition-all;
+  }
+}
+
+/* Custom Scrollbar for code blocks */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
