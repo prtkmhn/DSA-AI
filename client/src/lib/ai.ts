@@ -32,6 +32,10 @@ function toFriendlyErrorMessage(message: string): string {
     return "Invalid API key. Update your key in Settings.";
   }
 
+  if (normalized.includes("not supported for generatecontent")) {
+    return "Selected Gemini model is not supported for this API/key. The app will try fallback models automatically.";
+  }
+
   return message;
 }
 
@@ -78,8 +82,10 @@ export function clearAPILogs() {
 async function callGemini(apiKey: string, prompt: string, options?: GenerateOptions): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  // If a specific model is requested, only try that one; otherwise iterate fallback list
-  const modelsToTry = options?.model ? [options.model] : AI_CONFIG.geminiModels;
+  // If a specific model is requested, try it first, then fallback models.
+  const modelsToTry = options?.model
+    ? [options.model, ...AI_CONFIG.geminiModels.filter((m) => m !== options.model)]
+    : AI_CONFIG.geminiModels;
 
   let lastError: Error | null = null;
 
@@ -223,6 +229,8 @@ async function callGroq(apiKey: string, prompt: string): Promise<string> {
 export async function generateAIContent(prompt: string, options?: GenerateOptions): Promise<AIResponse> {
   const { aiSettings } = useStore.getState();
   const { geminiKey, groqKey, primaryProvider, enableFallback } = aiSettings;
+  const fallbackAvailable =
+    primaryProvider === "gemini" ? Boolean(groqKey) : Boolean(geminiKey);
 
   const tryGemini = async (): Promise<AIResponse> => {
     if (!geminiKey) throw new Error("Gemini API key not configured");
@@ -244,7 +252,7 @@ export async function generateAIContent(prompt: string, options?: GenerateOption
     }
   } catch (primaryError: unknown) {
     const pErr = primaryError as Error;
-    if (enableFallback) {
+    if (enableFallback && fallbackAvailable) {
       console.warn("[AI] Primary failed, trying fallback...", pErr.message);
       try {
         if (primaryProvider === 'gemini') {
