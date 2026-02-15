@@ -13,6 +13,28 @@ export interface GenerateOptions {
   useGrounding?: boolean; // Enable Google Search grounding
 }
 
+function toFriendlyErrorMessage(message: string): string {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("429") || normalized.includes("quota") || normalized.includes("rate limit")) {
+    return "AI quota/rate limit reached. Wait and retry, or switch provider in Settings (add Groq key as fallback).";
+  }
+
+  if (normalized.includes("gemini api key not configured")) {
+    return "Gemini API key not configured. Add it in Settings.";
+  }
+
+  if (normalized.includes("groq api key not configured")) {
+    return "Groq API key not configured. Add it in Settings to use fallback.";
+  }
+
+  if (normalized.includes("invalid api key") || normalized.includes("401")) {
+    return "Invalid API key. Update your key in Settings.";
+  }
+
+  return message;
+}
+
 // API Call Logging
 interface APILogEntry {
   timestamp: string;
@@ -232,10 +254,12 @@ export async function generateAIContent(prompt: string, options?: GenerateOption
         }
       } catch (fallbackError: unknown) {
         const fErr = fallbackError as Error;
+        const primaryMsg = toFriendlyErrorMessage(pErr.message);
+        const fallbackMsg = toFriendlyErrorMessage(fErr.message);
         return { 
           text: "", 
           provider: primaryProvider, 
-          error: `All providers failed.\nPrimary (${primaryProvider}): ${pErr.message}\nFallback: ${fErr.message}` 
+          error: `All providers failed. Primary (${primaryProvider}): ${primaryMsg} Fallback: ${fallbackMsg}` 
         };
       }
     }
@@ -243,7 +267,7 @@ export async function generateAIContent(prompt: string, options?: GenerateOption
     return { 
       text: "", 
       provider: primaryProvider, 
-      error: pErr.message 
+      error: toFriendlyErrorMessage(pErr.message)
     };
   }
 }
